@@ -78,6 +78,18 @@ namespace LambdaFlowFunctions
         {
             using (var scope = CreateScope())
             {
+                //TResponse response = null;
+
+                //await RunWithMiddleware(scope, apiGatewayProxyRequest, context, async () =>
+                //{
+                //    var request = Activator.CreateInstance<TRequest>();
+                //    var func = scope.ServiceProvider.GetRequiredService<THandler>();
+                //    response = func.Handler(request);
+                //    await Task.CompletedTask;
+                //});
+
+                //return response;
+
                 var request = Activator.CreateInstance<TRequest>();
                 var func = scope.ServiceProvider.GetRequiredService<THandler>();
                 var response = func.Handler(request);
