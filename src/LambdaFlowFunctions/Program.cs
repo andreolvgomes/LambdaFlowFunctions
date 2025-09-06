@@ -21,7 +21,7 @@ public class Program
     }
 }
 
-public class ProdutosFunctionWithoutRequest2 : FunctionWithoutRequest<ProdutosHandlerWithoutRequest2>;
+public class ProdutosFunctionWithoutRequest2 : FunctionWithoutRequestImpl<ProdutosHandlerWithoutRequest2>;
 public class ProdutosHandlerWithoutRequest2 : IHandlerWithoutRequest
 {
     public void Handler()
@@ -29,7 +29,7 @@ public class ProdutosHandlerWithoutRequest2 : IHandlerWithoutRequest
     }
 }
 
-public class ProdutosFunctionWithoutRequest : FunctionWithoutRequest<ProdutosHandlerWithoutRequest, Produtos>;
+public class ProdutosFunctionWithoutRequest : FunctionWithoutRequestImpl<ProdutosHandlerWithoutRequest, Produtos>;
 public class ProdutosHandlerWithoutRequest : IHandlerWithoutRequest<Produtos>
 {
     public Produtos Handler()
@@ -41,7 +41,7 @@ public class ProdutosHandlerWithoutRequest : IHandlerWithoutRequest<Produtos>
     }
 }
 
-public class ProdutosFunction : FunctionBase<ProdutosHandler, Produtos>;
+public class ProdutosFunction : FunctionImpl<ProdutosHandler, Produtos>;
 public class ProdutosHandler : IHandler<Produtos>
 {
     public void Handler(Produtos request)
@@ -49,7 +49,7 @@ public class ProdutosHandler : IHandler<Produtos>
     }
 }
 
-public class ProdutosFunction2 : Function<ProdutosHandler2, Produtos, List<Produtos>>;
+public class ProdutosFunction2 : FunctionImpl<ProdutosHandler2, Produtos, List<Produtos>>;
 public class ProdutosHandler2 : IHandler<Produtos, List<Produtos>>
 {
     public List<Produtos> Handler(Produtos request)
