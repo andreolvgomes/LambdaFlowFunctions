@@ -1,10 +1,12 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using LambdaFlowFunctions.Impl;
+using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace LambdaFlowFunctions
 {
     public static class IoC
     {
-        public static IServiceCollection Services()
+        public static IServiceProvider Services()
         {
             var services = new ServiceCollection();
             services.AddScoped<ProdutosHandlerWithoutRequest2>();
@@ -17,14 +19,13 @@ namespace LambdaFlowFunctions
             services.AddScoped<LoggingMiddleware>();
 
             // Registrar pipeline
-            services.AddSingleton<MiddlewarePipeline>(sp =>
+            services.AddSingleton(sp =>
             {
                 return new MiddlewarePipeline(sp)
                     .Use<LoggingMiddleware>()
                     .Use<ApiKeyMiddleware>();
             });
-
-            return services;
+            return services.BuildServiceProvider();
         }
     }
 }

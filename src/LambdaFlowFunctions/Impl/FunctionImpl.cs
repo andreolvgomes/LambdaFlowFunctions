@@ -2,7 +2,7 @@
 using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.Core;
 
-namespace LambdaFlowFunctions
+namespace LambdaFlowFunctions.Impl
 {
     public interface IHandler<TRequest>
         where TRequest : class, new()
@@ -31,25 +31,23 @@ namespace LambdaFlowFunctions
         where THandler : IHandler<TRequest>
         where TRequest : class, new()
     {
-        public async Task Run(APIGatewayProxyRequest apiGatewayProxyRequest, ILambdaContext context)
+        protected FunctionImpl(IServiceProvider serviceProvider) : base(serviceProvider)
+        {
+        }
+
+        public async Task<APIGatewayProxyResponse> Run(APIGatewayProxyRequest apiGatewayProxyRequest, ILambdaContext context)
         {
             using (var scope = CreateScope())
             {
-                //TResponse response = null;
-
-                //await RunWithMiddleware(scope, apiGatewayProxyRequest, context, async () =>
-                //{
-                //    var request = Activator.CreateInstance<TRequest>();
-                //    var func = scope.ServiceProvider.GetRequiredService<THandler>();
-                //    response = func.Handler(request);
-                //    await Task.CompletedTask;
-                //});
-
-                //return response;
+                var middlewareRespononse = await RunMiddleware(apiGatewayProxyRequest, context);
+                if (middlewareRespononse != null)
+                    return middlewareRespononse;
 
                 var request = Activator.CreateInstance<TRequest>();
                 var func = scope.ServiceProvider.GetRequiredService<THandler>();
                 func.Handler(request);
+
+                return Response();
             }
         }
     }
@@ -59,25 +57,23 @@ namespace LambdaFlowFunctions
         where TRequest : class, new()
         where TResponse : class, new()
     {
-        public async Task Run(APIGatewayProxyRequest apiGatewayProxyRequest, ILambdaContext context)
+        protected FunctionImpl(IServiceProvider serviceProvider) : base(serviceProvider)
+        {
+        }
+
+        public async Task<APIGatewayProxyResponse> Run(APIGatewayProxyRequest apiGatewayProxyRequest, ILambdaContext context)
         {
             using (var scope = CreateScope())
             {
-                //TResponse response = null;
-
-                //await RunWithMiddleware(scope, apiGatewayProxyRequest, context, async () =>
-                //{
-                //    var request = Activator.CreateInstance<TRequest>();
-                //    var func = scope.ServiceProvider.GetRequiredService<THandler>();
-                //    response = func.Handler(request);
-                //    await Task.CompletedTask;
-                //});
-
-                //return response;
+                var middlewareRespononse = await RunMiddleware(apiGatewayProxyRequest, context);
+                if (middlewareRespononse != null)
+                    return middlewareRespononse;
 
                 var request = Activator.CreateInstance<TRequest>();
                 var func = scope.ServiceProvider.GetRequiredService<THandler>();
                 var response = func.Handler(request);
+
+                return Response(response);
             }
         }
     }
@@ -85,12 +81,22 @@ namespace LambdaFlowFunctions
     public abstract class FunctionWithoutRequestImpl<THandler> : FunctionBase
         where THandler : IHandlerWithoutRequest
     {
-        public void Run(APIGatewayProxyRequest apiGatewayProxyRequest, ILambdaContext context)
+        protected FunctionWithoutRequestImpl(IServiceProvider serviceProvider) : base(serviceProvider)
+        {
+        }
+
+        public async Task<APIGatewayProxyResponse> Run(APIGatewayProxyRequest apiGatewayProxyRequest, ILambdaContext context)
         {
             using (var scope = CreateScope())
             {
+                var middlewareRespononse = await RunMiddleware(apiGatewayProxyRequest, context);
+                if (middlewareRespononse != null)
+                    return middlewareRespononse;
+
                 var func = scope.ServiceProvider.GetRequiredService<THandler>();
                 func.Handler();
+
+                return Response();
             }
         }
     }
@@ -99,12 +105,22 @@ namespace LambdaFlowFunctions
         where THandler : IHandlerWithoutRequest<TResponse>
         where TResponse : class, new()
     {
-        public void Run(APIGatewayProxyRequest apiGatewayProxyRequest, ILambdaContext context)
+        protected FunctionWithoutRequestImpl(IServiceProvider serviceProvider) : base(serviceProvider)
+        {
+        }
+
+        public async Task<APIGatewayProxyResponse> Run(APIGatewayProxyRequest apiGatewayProxyRequest, ILambdaContext context)
         {
             using (var scope = CreateScope())
             {
+                var middlewareRespononse = await RunMiddleware(apiGatewayProxyRequest, context);
+                if (middlewareRespononse != null)
+                    return middlewareRespononse;
+
                 var func = scope.ServiceProvider.GetRequiredService<THandler>();
                 var response = func.Handler();
+
+                return Response(response);
             }
         }
     }
@@ -113,10 +129,9 @@ namespace LambdaFlowFunctions
     {
         protected readonly IServiceProvider _serviceProvider;
 
-        public FunctionBase()
+        public FunctionBase(IServiceProvider serviceProvider)
         {
-            var services = IoC.Services();
-            _serviceProvider = services.BuildServiceProvider();
+            _serviceProvider = serviceProvider;
         }
 
         protected IServiceScope CreateScope()
@@ -125,11 +140,17 @@ namespace LambdaFlowFunctions
             return scope;
         }
 
-        protected async Task RunWithMiddleware(IServiceScope scope, APIGatewayProxyRequest apiGatewayProxyRequest,
-            ILambdaContext context, Func<Task> handlerExecution)
+        protected async Task<APIGatewayProxyResponse> RunMiddleware(APIGatewayProxyRequest apiGatewayProxyRequest, ILambdaContext context)
         {
-            var pipeline = scope.ServiceProvider.GetRequiredService<MiddlewarePipeline>();
-            await pipeline.ExecuteAsync(apiGatewayProxyRequest, context, handlerExecution);
+            var pipeline = _serviceProvider.GetRequiredService<MiddlewarePipeline>();
+            return await pipeline.ExecuteAsync(apiGatewayProxyRequest, context);
+        }
+
+        protected APIGatewayProxyResponse Response(object response = null)
+        {
+            return new APIGatewayProxyResponse()
+            {
+            };
         }
     }
 }
