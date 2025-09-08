@@ -29,9 +29,8 @@ namespace LambdaFlowFunctions.Impl
         {
             Func<Task<APIGatewayProxyResponse>> pipeline = () => Task.FromResult<APIGatewayProxyResponse>(null);
 
-            for (int i = 0; i < _middlewareTypes.Count; i++)
+            foreach (var middlewareType in _middlewareTypes)
             {
-                var middlewareType = _middlewareTypes[i];
                 var middleware = (ILambdaMiddleware)_serviceProvider.GetRequiredService(middlewareType);
 
                 var next = pipeline;
