@@ -1,6 +1,9 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using System.ComponentModel.DataAnnotations;
 using Amazon.Lambda.APIGatewayEvents;
+using Newtonsoft.Json.Serialization;
 using Amazon.Lambda.Core;
+using Newtonsoft.Json;
 
 namespace LambdaFlowFunctions.Impl
 {
@@ -31,7 +34,8 @@ namespace LambdaFlowFunctions.Impl
         where THandler : IHandler<TRequest>
         where TRequest : class, new()
     {
-        protected FunctionImpl(IServiceProvider serviceProvider) : base(serviceProvider)
+        protected FunctionImpl(IServiceProvider serviceProvider) 
+            : base(serviceProvider)
         {
         }
 
@@ -43,7 +47,12 @@ namespace LambdaFlowFunctions.Impl
                 if (middlewareRespononse != null)
                     return middlewareRespononse;
 
-                var request = Activator.CreateInstance<TRequest>();
+                var request = DeserializeObject<TRequest>(apiGateway.Body);
+
+                var errors = TryValidateObject(request);
+                if (errors.Any())
+                    return BadRequest(errors.Select(e => e.MemberNames.FirstOrDefault() + ": " + e.ErrorMessage).ToList());
+
                 var func = scope.ServiceProvider.GetRequiredService<THandler>();
                 func.Handler(request, apiGateway, context);
 
@@ -57,7 +66,8 @@ namespace LambdaFlowFunctions.Impl
         where TRequest : class, new()
         where TResponse : class, new()
     {
-        protected FunctionImpl(IServiceProvider serviceProvider) : base(serviceProvider)
+        protected FunctionImpl(IServiceProvider serviceProvider) 
+            : base(serviceProvider)
         {
         }
 
@@ -69,7 +79,12 @@ namespace LambdaFlowFunctions.Impl
                 if (middlewareRespononse != null)
                     return middlewareRespononse;
 
-                var request = Activator.CreateInstance<TRequest>();
+                var request = DeserializeObject<TRequest>(apiGateway.Body);
+
+                var errors = TryValidateObject(request);
+                if (errors.Any())
+                    return BadRequest(errors.Select(e => e.MemberNames.FirstOrDefault() + ": " + e.ErrorMessage).ToList());
+
                 var func = scope.ServiceProvider.GetRequiredService<THandler>();
                 var response = func.Handler(request, apiGateway, context);
 
@@ -81,7 +96,8 @@ namespace LambdaFlowFunctions.Impl
     public abstract class FunctionWithoutRequestImpl<THandler> : FunctionBase
         where THandler : IHandlerWithoutRequest
     {
-        protected FunctionWithoutRequestImpl(IServiceProvider serviceProvider) : base(serviceProvider)
+        protected FunctionWithoutRequestImpl(IServiceProvider serviceProvider) 
+            : base(serviceProvider)
         {
         }
 
@@ -105,7 +121,8 @@ namespace LambdaFlowFunctions.Impl
         where THandler : IHandlerWithoutRequest<TResponse>
         where TResponse : class, new()
     {
-        protected FunctionWithoutRequestImpl(IServiceProvider serviceProvider) : base(serviceProvider)
+        protected FunctionWithoutRequestImpl(IServiceProvider serviceProvider) 
+            : base(serviceProvider)
         {
         }
 
@@ -151,6 +168,27 @@ namespace LambdaFlowFunctions.Impl
             return new APIGatewayProxyResponse()
             {
             };
+        }
+
+        protected APIGatewayProxyResponse BadRequest(object response = null)
+        {
+            return new APIGatewayProxyResponse()
+            {
+            };
+        }
+
+        protected List<ValidationResult> TryValidateObject<T>(T obj)
+        {
+            var results = new List<ValidationResult>();
+            var context = new ValidationContext(obj, null, null);
+            Validator.TryValidateObject(obj, context, results, true);
+            return results;
+        }
+
+        protected T DeserializeObject<T>(string value)
+        {
+            var camelSettings = new JsonSerializerSettings { ContractResolver = new CamelCasePropertyNamesContractResolver() };
+            return JsonConvert.DeserializeObject<T>(value, settings: camelSettings);
         }
     }
 }
