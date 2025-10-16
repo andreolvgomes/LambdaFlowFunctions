@@ -2,7 +2,7 @@
 using Amazon.Lambda.Core;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LambdaFlowFunctions.Impl
+namespace LambdaFunctionFast
 {
     public interface ILambdaMiddleware
     {

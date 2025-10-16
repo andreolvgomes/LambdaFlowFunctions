@@ -5,7 +5,7 @@ using Newtonsoft.Json.Serialization;
 using Amazon.Lambda.Core;
 using Newtonsoft.Json;
 
-namespace LambdaFlowFunctions.Impl
+namespace LambdaFunctionFast
 {
     public interface IHandler<TRequest>
         where TRequest : class, new()
