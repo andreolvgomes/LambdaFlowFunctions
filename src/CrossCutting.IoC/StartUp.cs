@@ -1,22 +1,19 @@
-﻿using LambdaFlowFunctions.Impl;
+﻿using Infra.Repositories;
+using LambdaFunctionFast;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 
-namespace LambdaFlowFunctions
+namespace CrossCutting.IoC
 {
-    public static class IoC
+    public class StartUp
     {
-        public static IServiceProvider Services()
+        public static IServiceCollection ServiceCollection()
         {
             var services = new ServiceCollection();
-            services.AddScoped<ProdutosHandlerWithoutRequest2>();
-            services.AddScoped<ProdutosHandlerWithoutRequest>();
-            services.AddScoped<ProdutosHandler>();
-            services.AddScoped<ProdutosHandler2>();
 
             // Middlewares
             services.AddScoped<ApiKeyMiddleware>();
             services.AddScoped<LoggingMiddleware>();
+            services.AddScoped<IRepository, Repository>();
 
             // Registrar pipeline
             services.AddSingleton(sp =>
@@ -25,7 +22,13 @@ namespace LambdaFlowFunctions
                     .Use<LoggingMiddleware>()
                     .Use<ApiKeyMiddleware>();
             });
-            return services.BuildServiceProvider();
+            return services;
+
+        }
+
+        public static IServiceProvider ServiceProvider()
+        {
+            return ServiceCollection().BuildServiceProvider();
         }
     }
 }

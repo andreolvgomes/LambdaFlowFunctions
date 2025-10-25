@@ -1,42 +1,45 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System.ComponentModel.DataAnnotations;
-using Amazon.Lambda.APIGatewayEvents;
-using Newtonsoft.Json.Serialization;
+﻿using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.Core;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
+using System.Net;
+using System.Reflection.Metadata;
 
 namespace LambdaFunctionFast
 {
     public interface IHandler<TRequest>
         where TRequest : class, new()
     {
-        void Handler(TRequest request, APIGatewayProxyRequest apiGateway, ILambdaContext context);
+        Task<ResponseResult<Response>> Handler(TRequest request, APIGatewayProxyRequest apiGateway, ILambdaContext context);
     }
 
     public interface IHandler<TRequest, TResponse>
         where TResponse : class, new()
     {
-        TResponse Handler(TRequest request, APIGatewayProxyRequest apiGateway, ILambdaContext context);
+        Task<ResponseResult<TResponse>> Handler(TRequest request, APIGatewayProxyRequest apiGateway, ILambdaContext context);
     }
 
     public interface IHandlerWithoutRequest
     {
-        void Handler(APIGatewayProxyRequest apiGateway, ILambdaContext context);
+        Task<ResponseResult<Response>> Handler(APIGatewayProxyRequest apiGateway, ILambdaContext context);
     }
 
     public interface IHandlerWithoutRequest<TResponse>
         where TResponse : class, new()
     {
-        TResponse Handler(APIGatewayProxyRequest apiGateway, ILambdaContext context);
+        Task<ResponseResult<TResponse>> Handler(APIGatewayProxyRequest apiGateway, ILambdaContext context);
     }
 
     public abstract class FunctionImpl<THandler, TRequest> : FunctionBase
         where THandler : IHandler<TRequest>
         where TRequest : class, new()
     {
-        protected FunctionImpl(IServiceProvider serviceProvider) 
-            : base(serviceProvider)
+        protected FunctionImpl(IServiceCollection serviceCollection)
+            : base(serviceCollection)
         {
+            BuildServiceProvider(typeof(THandler));
         }
 
         public async Task<APIGatewayProxyResponse> Run(APIGatewayProxyRequest apiGateway, ILambdaContext context)
@@ -54,9 +57,9 @@ namespace LambdaFunctionFast
                     return BadRequest(errors.Select(e => e.MemberNames.FirstOrDefault() + ": " + e.ErrorMessage).ToList());
 
                 var func = scope.ServiceProvider.GetRequiredService<THandler>();
-                func.Handler(request, apiGateway, context);
+                var response = await func.Handler(request, apiGateway, context);
 
-                return Response();
+                return ActionResult(response);
             }
         }
     }
@@ -66,9 +69,10 @@ namespace LambdaFunctionFast
         where TRequest : class, new()
         where TResponse : class, new()
     {
-        protected FunctionImpl(IServiceProvider serviceProvider) 
-            : base(serviceProvider)
+        protected FunctionImpl(IServiceCollection serviceCollection)
+            : base(serviceCollection)
         {
+            BuildServiceProvider(typeof(THandler));
         }
 
         public async Task<APIGatewayProxyResponse> Run(APIGatewayProxyRequest apiGateway, ILambdaContext context)
@@ -86,9 +90,9 @@ namespace LambdaFunctionFast
                     return BadRequest(errors.Select(e => e.MemberNames.FirstOrDefault() + ": " + e.ErrorMessage).ToList());
 
                 var func = scope.ServiceProvider.GetRequiredService<THandler>();
-                var response = func.Handler(request, apiGateway, context);
+                var response = await func.Handler(request, apiGateway, context);
 
-                return Response(response);
+                return ActionResult(response);
             }
         }
     }
@@ -96,9 +100,10 @@ namespace LambdaFunctionFast
     public abstract class FunctionWithoutRequestImpl<THandler> : FunctionBase
         where THandler : IHandlerWithoutRequest
     {
-        protected FunctionWithoutRequestImpl(IServiceProvider serviceProvider) 
-            : base(serviceProvider)
+        protected FunctionWithoutRequestImpl(IServiceCollection serviceCollection)
+            : base(serviceCollection)
         {
+            BuildServiceProvider(typeof(THandler));
         }
 
         public async Task<APIGatewayProxyResponse> Run(APIGatewayProxyRequest apiGateway, ILambdaContext context)
@@ -110,9 +115,9 @@ namespace LambdaFunctionFast
                     return middlewareRespononse;
 
                 var func = scope.ServiceProvider.GetRequiredService<THandler>();
-                func.Handler(apiGateway, context);
+                var response = await func.Handler(apiGateway, context);
 
-                return Response();
+                return ActionResult(response);
             }
         }
     }
@@ -121,9 +126,10 @@ namespace LambdaFunctionFast
         where THandler : IHandlerWithoutRequest<TResponse>
         where TResponse : class, new()
     {
-        protected FunctionWithoutRequestImpl(IServiceProvider serviceProvider) 
-            : base(serviceProvider)
+        protected FunctionWithoutRequestImpl(IServiceCollection serviceCollection)
+            : base(serviceCollection)
         {
+            BuildServiceProvider(typeof(THandler));
         }
 
         public async Task<APIGatewayProxyResponse> Run(APIGatewayProxyRequest apiGateway, ILambdaContext context)
@@ -135,20 +141,43 @@ namespace LambdaFunctionFast
                     return middlewareRespononse;
 
                 var func = scope.ServiceProvider.GetRequiredService<THandler>();
-                var response = func.Handler(apiGateway, context);
+                var response = await func.Handler(apiGateway, context);
 
-                return Response(response);
+                return ActionResult(response);
             }
         }
     }
 
     public abstract class FunctionBase
     {
-        protected readonly IServiceProvider _serviceProvider;
+        protected IServiceProvider _serviceProvider;
+        private readonly IServiceCollection _serviceCollection;
 
-        public FunctionBase(IServiceProvider serviceProvider)
+        public FunctionBase(IServiceCollection serviceCollection)
         {
-            _serviceProvider = serviceProvider;
+            _serviceCollection = serviceCollection;
+        }
+
+        public void BuildServiceProvider(Type functionImpl)
+        {
+            _serviceCollection.AddScoped(functionImpl);
+            _serviceProvider = _serviceCollection.BuildServiceProvider();
+        }
+
+        public APIGatewayProxyResponse ActionResult<T>(ResponseResult<T> result)
+        {
+            if (result.HttpStatus is Success) return Ok();
+            if (result.HttpStatus is Created) return Created();
+            if (result.HttpStatus is Deleted) return NoContent();
+            if (result.HttpStatus is Updated) return NoContent();
+
+            if (result.HttpStatus is NotFound) return Response(result.Errors, httpStatusCode: HttpStatusCode.NotFound);
+            if (result.HttpStatus is BadRequest) return Response(result.Errors, httpStatusCode: HttpStatusCode.BadRequest);
+
+            if (result.Errors.Count > 0)
+                return BadRequest(result.Errors);
+
+            return Ok(result.Data);
         }
 
         protected IServiceScope CreateScope()
@@ -163,17 +192,48 @@ namespace LambdaFunctionFast
             return await pipeline.ExecuteAsync(apiGateway, context);
         }
 
-        protected APIGatewayProxyResponse Response(object response = null)
+        protected APIGatewayProxyResponse Ok(object value = null)
         {
-            return new APIGatewayProxyResponse()
+            return new()
             {
+                Body = value != null ? SerializeObject(value) : null,
+                StatusCode = (int)HttpStatusCode.OK,
+                Headers = new Dictionary<string, string>() { ["Content-Type"] = "application/json" }
             };
         }
 
-        protected APIGatewayProxyResponse BadRequest(object response = null)
+        protected APIGatewayProxyResponse BadRequest(string message)
         {
-            return new APIGatewayProxyResponse()
+            return BadRequest(new List<string> { message });
+        }
+
+        protected APIGatewayProxyResponse BadRequest(List<string> messagesErrors, HttpStatusCode statusCode = HttpStatusCode.BadRequest)
+        {
+            return new()
             {
+                Body = SerializeObject(new { messages = messagesErrors }),
+                StatusCode = (int)statusCode,
+                Headers = new Dictionary<string, string>() { ["Content-Type"] = "application/json" }
+            };
+        }
+
+        protected APIGatewayProxyResponse NoContent()
+        {
+            return Response(messagesErrors: null, HttpStatusCode.NoContent);
+        }
+
+        protected APIGatewayProxyResponse Created()
+        {
+            return Response(messagesErrors: null, HttpStatusCode.Created);
+        }
+
+        protected APIGatewayProxyResponse Response(List<string> messagesErrors = null, HttpStatusCode httpStatusCode = HttpStatusCode.NoContent)
+        {
+            return new()
+            {
+                Body = messagesErrors != null && messagesErrors.Count > 0 ? SerializeObject(new { messages = messagesErrors }) : null,
+                StatusCode = (int)httpStatusCode,
+                Headers = new Dictionary<string, string>() { ["Content-Type"] = "application/json" }
             };
         }
 
@@ -183,6 +243,12 @@ namespace LambdaFunctionFast
             var context = new ValidationContext(obj, null, null);
             Validator.TryValidateObject(obj, context, results, true);
             return results;
+        }
+
+        protected string SerializeObject(object value)
+        {
+            var camelSettings = new JsonSerializerSettings { ContractResolver = new CamelCasePropertyNamesContractResolver() };
+            return JsonConvert.SerializeObject(value, settings: camelSettings);
         }
 
         protected T DeserializeObject<T>(string value)

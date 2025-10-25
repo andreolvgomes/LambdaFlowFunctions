@@ -26,37 +26,36 @@ public class Program
 public class ProdutosFunction : Function<ProdutosHandler, Produtos>;
 public class ProdutosHandler : IHandler<Produtos>
 {
-    public void Handler(Produtos request, APIGatewayProxyRequest apiGateway, ILambdaContext context)
+    public async Task<ResponseResult<Response>> Handler(Produtos request, APIGatewayProxyRequest apiGateway, ILambdaContext context)
     {
+        return new BadRequest("Error");
     }
 }
 
 public class ProdutosFunction2 : Function<ProdutosHandler2, Produtos, List<Produtos>>;
 public class ProdutosHandler2 : IHandler<Produtos, List<Produtos>>
 {
-    public List<Produtos> Handler(Produtos request, APIGatewayProxyRequest apiGateway, ILambdaContext context)
+    public async Task<ResponseResult<List<Produtos>>> Handler(Produtos request, APIGatewayProxyRequest apiGateway, ILambdaContext context)
     {
-        return new List<Produtos>();
+        return new ResponseResult<List<Produtos>>(new List<Produtos>());
     }
 }
 
 public class ProdutosFunctionWithoutRequest2 : FunctionWithoutRequest<ProdutosHandlerWithoutRequest2>;
 public class ProdutosHandlerWithoutRequest2 : IHandlerWithoutRequest
 {
-    public void Handler(APIGatewayProxyRequest apiGateway, ILambdaContext context)
+    public async Task<ResponseResult<Response>> Handler(APIGatewayProxyRequest apiGateway, ILambdaContext context)
     {
+        return Result.Success;
     }
 }
 
 public class ProdutosFunctionWithoutRequest : FunctionWithoutRequest<ProdutosHandlerWithoutRequest, Produtos>;
 public class ProdutosHandlerWithoutRequest : IHandlerWithoutRequest<Produtos>
 {
-    public Produtos Handler(APIGatewayProxyRequest apiGateway, ILambdaContext context)
+    public async Task<ResponseResult<Produtos>> Handler(APIGatewayProxyRequest apiGateway, ILambdaContext context)
     {
-        return new Produtos()
-        {
-            Id = Guid.NewGuid()
-        };
+        return new ResponseResult<Produtos>(new Produtos());
     }
 }
 
