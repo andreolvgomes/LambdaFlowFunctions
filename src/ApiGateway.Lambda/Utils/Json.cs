@@ -11,4 +11,10 @@ public class Json
 
         return JsonSerializer.Deserialize<T>(value);
     }
+
+    public static string Deserialize(object value)
+    {
+        if (value is null) return string.Empty;
+        return JsonSerializer.Serialize(value);
+    }
 }

@@ -1,6 +1,7 @@
 ﻿using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.Core;
 using LambdaFunctionFast;
+using LambdaFunctionFast.Middleware;
 
 namespace CrossCutting;
 

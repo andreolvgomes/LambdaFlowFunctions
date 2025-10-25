@@ -2,13 +2,8 @@
 using Amazon.Lambda.Core;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LambdaFunctionFast
+namespace LambdaFunctionFast.Middleware
 {
-    public interface ILambdaMiddleware
-    {
-        Task<ResponseResult<object>> InvokeAsync(APIGatewayProxyRequest request, ILambdaContext context, Func<Task<ResponseResult<object>>> next);
-    }
-
     public class MiddlewarePipeline
     {
         private readonly IList<Type> _middlewareTypes = new List<Type>();

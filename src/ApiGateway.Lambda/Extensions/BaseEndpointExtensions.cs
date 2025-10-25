@@ -1,4 +1,5 @@
 ﻿using Amazon.Lambda.APIGatewayEvents;
+using ApiGateway.Lambda.Utils;
 using FastEndpoints;
 using System.Text;
 
@@ -14,12 +15,14 @@ public static class BaseEndpointExtensions
         }
     }
 
-    private static async Task<APIGatewayProxyRequest> ConvertHttpRequestToApiGatewayProxyRequest(HttpRequest httpRequest)
+    private static async Task<APIGatewayProxyRequest> ConvertHttpRequestToApiGatewayProxyRequest(HttpRequest httpRequest, object body = null)
     {
         // Extract necessary information from the HttpRequest
         // and create an APIGatewayProxyRequest
         // Adjust this based on your specific requirements
         var requestBody = await ConvertStreamToString(httpRequest.Body);
+        if (body != null)
+            requestBody = Json.Deserialize(body);
 
         var apiGatewayProxyRequest = new APIGatewayProxyRequest
         {
@@ -35,8 +38,8 @@ public static class BaseEndpointExtensions
         return apiGatewayProxyRequest;
     }
 
-    public static Task<APIGatewayProxyRequest> ToProxyRequest(this BaseEndpoint endpoint)
+    public static Task<APIGatewayProxyRequest> ToProxyRequest(this BaseEndpoint endpoint, object body = null)
     {
-        return ConvertHttpRequestToApiGatewayProxyRequest(endpoint.HttpContext.Request);
+        return ConvertHttpRequestToApiGatewayProxyRequest(endpoint.HttpContext.Request, body);
     }
 }
