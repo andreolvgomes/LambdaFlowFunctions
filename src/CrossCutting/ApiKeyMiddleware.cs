@@ -6,27 +6,13 @@ namespace CrossCutting;
 
 public class ApiKeyMiddleware : ILambdaMiddleware
 {
-    public async Task<APIGatewayProxyResponse> InvokeAsync(APIGatewayProxyRequest request, ILambdaContext context, Func<Task<APIGatewayProxyResponse>> next)
+    public async Task<ResponseResult<object>> InvokeAsync(APIGatewayProxyRequest request, ILambdaContext context, Func<Task<ResponseResult<object>>> next)
     {
         //if (request.Headers is null)
-        //{
-        //    return new APIGatewayProxyResponse
-        //    {
-        //        StatusCode = 401,
-        //        Body = "API Key inválida",
-        //        Headers = new Dictionary<string, string> { { "Content-Type", "text/plain" } }
-        //    };
-        //}
+        //    return new Unauthorized("API Key inválida");
 
         //if (!request.Headers.TryGetValue("x-api-key", out var apiKey) || apiKey != "minha-chave")
-        //{
-        //    return new APIGatewayProxyResponse
-        //    {
-        //        StatusCode = 401,
-        //        Body = "API Key inválida",
-        //        Headers = new Dictionary<string, string> { { "Content-Type", "text/plain" } }
-        //    };
-        //}
+        //    return new Unauthorized("API Key inválida");
 
         return await next();
     }
@@ -34,7 +20,7 @@ public class ApiKeyMiddleware : ILambdaMiddleware
 
 public class LoggingMiddleware : ILambdaMiddleware
 {
-    public async Task<APIGatewayProxyResponse> InvokeAsync(APIGatewayProxyRequest request, ILambdaContext context, Func<Task<APIGatewayProxyResponse>> next)
+    public async Task<ResponseResult<object>> InvokeAsync(APIGatewayProxyRequest request, ILambdaContext context, Func<Task<ResponseResult<object>>> next)
     {
         Console.WriteLine($"[Request] {request.HttpMethod} {request.Path}");
         Console.WriteLine("[Response] concluído");

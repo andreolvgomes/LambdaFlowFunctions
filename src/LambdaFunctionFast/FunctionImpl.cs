@@ -23,7 +23,7 @@ public abstract class FunctionImpl<THandler, TRequest> : FunctionBase
         {
             var middlewareRespononse = await RunMiddleware(apiGateway, context);
             if (middlewareRespononse != null)
-                return middlewareRespononse;
+                return ActionResult(middlewareRespononse);
 
             var request = DeserializeObject<TRequest>(apiGateway.Body);
 
@@ -55,7 +55,7 @@ public abstract class FunctionImpl<THandler, TRequest, TResponse> : FunctionBase
         {
             var middlewareRespononse = await RunMiddleware(apiGateway, context);
             if (middlewareRespononse != null)
-                return middlewareRespononse;
+                return ActionResult(middlewareRespononse);
 
             var request = DeserializeObject<TRequest>(apiGateway.Body);
 
@@ -85,7 +85,7 @@ public abstract class FunctionWithoutRequestImpl<THandler> : FunctionBase
         {
             var middlewareRespononse = await RunMiddleware(apiGateway, context);
             if (middlewareRespononse != null)
-                return middlewareRespononse;
+                return ActionResult(middlewareRespononse);
 
             var func = scope.ServiceProvider.GetRequiredService<THandler>();
             var response = await func.Handler(apiGateway, context);
@@ -110,7 +110,7 @@ public abstract class FunctionWithoutRequestImpl<THandler, TResponse> : Function
         {
             var middlewareRespononse = await RunMiddleware(apiGateway, context);
             if (middlewareRespononse != null)
-                return middlewareRespononse;
+                return ActionResult(middlewareRespononse);
 
             var func = scope.ServiceProvider.GetRequiredService<THandler>();
             var response = await func.Handler(apiGateway, context);
@@ -137,8 +137,9 @@ public abstract class FunctionBase
         if (result.HttpStatus is Deleted) return NoContent();
         if (result.HttpStatus is Updated) return NoContent();
 
-        if (result.HttpStatus is NotFound) return Response(result.Errors, httpStatusCode: HttpStatusCode.NotFound);
-        if (result.HttpStatus is BadRequest) return Response(result.Errors, httpStatusCode: HttpStatusCode.BadRequest);
+        if (result.HttpStatus is NotFound) return Errors(result.Errors, httpStatusCode: HttpStatusCode.NotFound);
+        if (result.HttpStatus is BadRequest) return Errors(result.Errors, httpStatusCode: HttpStatusCode.BadRequest);
+        if (result.HttpStatus is Unauthorized) return Errors(result.Errors, httpStatusCode: HttpStatusCode.Unauthorized);
 
         if (result.Errors.Count > 0)
             return BadRequest(result.Errors);
@@ -152,7 +153,7 @@ public abstract class FunctionBase
         return scope;
     }
 
-    protected async Task<APIGatewayProxyResponse> RunMiddleware(APIGatewayProxyRequest apiGateway, ILambdaContext context)
+    protected async Task<ResponseResult<object>> RunMiddleware(APIGatewayProxyRequest apiGateway, ILambdaContext context)
     {
         var pipeline = _serviceProvider.GetRequiredService<MiddlewarePipeline>();
         return await pipeline.ExecuteAsync(apiGateway, context);
@@ -185,19 +186,29 @@ public abstract class FunctionBase
 
     protected APIGatewayProxyResponse NoContent()
     {
-        return Response(messagesErrors: null, HttpStatusCode.NoContent);
+        return Response(null, HttpStatusCode.NoContent);
     }
 
     protected APIGatewayProxyResponse Created()
     {
-        return Response(messagesErrors: null, HttpStatusCode.Created);
+        return Response(null, HttpStatusCode.Created);
     }
 
-    protected APIGatewayProxyResponse Response(List<string> messagesErrors = null, HttpStatusCode httpStatusCode = HttpStatusCode.NoContent)
+    protected APIGatewayProxyResponse Response(object data, HttpStatusCode httpStatusCode = HttpStatusCode.NoContent)
     {
         return new()
         {
-            Body = messagesErrors != null && messagesErrors.Count > 0 ? SerializeObject(new { messages = messagesErrors }) : null,
+            Body = data != null ? SerializeObject(data) : null,
+            StatusCode = (int)httpStatusCode,
+            Headers = new Dictionary<string, string>() { ["Content-Type"] = "application/json" }
+        };
+    }
+
+    protected APIGatewayProxyResponse Errors(List<string> messagesErrors, HttpStatusCode httpStatusCode = HttpStatusCode.NoContent)
+    {
+        return new()
+        {
+            Body = SerializeObject(new { messages = messagesErrors }),
             StatusCode = (int)httpStatusCode,
             Headers = new Dictionary<string, string>() { ["Content-Type"] = "application/json" }
         };

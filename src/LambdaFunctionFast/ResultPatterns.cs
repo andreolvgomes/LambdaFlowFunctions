@@ -43,6 +43,9 @@
 
         public static ResponseResult<T> BadRequest(BadRequest response) => new ResponseResult<T>(default, new List<string>() { response.Message }) { HttpStatus = response };
         public static implicit operator ResponseResult<T>(BadRequest response) => BadRequest(response);
+
+        public static ResponseResult<T> Unauthorized(Unauthorized response) => new ResponseResult<T>(default, new List<string>() { response.Message }) { HttpStatus = response };
+        public static implicit operator ResponseResult<T>(Unauthorized response) => Unauthorized(response);
     }
 
     public record struct BadRequest
@@ -65,6 +68,15 @@
         }
     }
 
+    public record struct Unauthorized
+    {
+        public string Message { get; set; }
+        public Unauthorized(string message = "")
+        {
+            Message = message;
+        }
+    }
+
     public readonly record struct Success;
     public readonly record struct Created;
     public readonly record struct Deleted;
@@ -77,6 +89,7 @@
         public static Created Created => new Created();
         public static Deleted Deleted => new Deleted();
         public static Updated Updated => new Updated();
+        public static Unauthorized Unauthorized => new Unauthorized();
         public static BadRequest BadRequest => new BadRequest();
         public static NotFound NotFound => new NotFound();
     }

@@ -6,7 +6,7 @@ namespace LambdaFunctionFast
 {
     public interface ILambdaMiddleware
     {
-        Task<APIGatewayProxyResponse> InvokeAsync(APIGatewayProxyRequest request, ILambdaContext context, Func<Task<APIGatewayProxyResponse>> next);
+        Task<ResponseResult<object>> InvokeAsync(APIGatewayProxyRequest request, ILambdaContext context, Func<Task<ResponseResult<object>>> next);
     }
 
     public class MiddlewarePipeline
@@ -25,9 +25,9 @@ namespace LambdaFunctionFast
             return this;
         }
 
-        public async Task<APIGatewayProxyResponse> ExecuteAsync(APIGatewayProxyRequest request, ILambdaContext context)
+        public async Task<ResponseResult<object>> ExecuteAsync(APIGatewayProxyRequest request, ILambdaContext context)
         {
-            Func<Task<APIGatewayProxyResponse>> pipeline = () => Task.FromResult<APIGatewayProxyResponse>(null);
+            Func<Task<ResponseResult<object>>> pipeline = () => Task.FromResult<ResponseResult<object>>(null);
 
             foreach (var middlewareType in _middlewareTypes)
             {
