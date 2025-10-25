@@ -23,7 +23,6 @@ namespace CrossCutting.IoC
                     .Use<ApiKeyMiddleware>();
             });
             return services;
-
         }
 
         public static IServiceProvider ServiceProvider()
